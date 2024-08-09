@@ -13,11 +13,10 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.logging.Logger;
@@ -29,42 +28,70 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Value("${jwt.secret}")
     private String jwtSecret;
 
+    @PostConstruct
+    public void init() {
+        if (jwtSecret == null || jwtSecret.isEmpty()) {
+            throw new IllegalStateException("JWT secret is not set. Check your application properties.");
+        }
+    }
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        System.out.println("JwtAuthenticationFilter: Processing request to " + request.getRequestURI());
+        String path = request.getRequestURI();
+        logger.info("JwtAuthenticationFilter: Processing request to " + path);
 
+        if (isPublicEndpoint(path)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
         String token = extractToken(request);
         logger.info("Extracted token: " + (token != null ? "present" : "null"));
 
-        if (token != null && validateToken(token)) {
-            Claims claims = Jwts.parserBuilder()
-                    .setSigningKey(getSigningKey())
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody();
-            String username = claims.getSubject();
-            String role = claims.get("role", String.class);
+        if (token == null) {
+            logger.warning("No valid JWT token found in request headers for protected endpoint: " + path);
+            filterChain.doFilter(request, response);
+            return;
+        }
 
-            logger.info("Username from token: " + username);
-            logger.info("token: " + token);
+        try {
+            if (validateToken(token)) {
+                Claims claims = Jwts.parserBuilder()
+                        .setSigningKey(getSigningKey())
+                        .build()
+                        .parseClaimsJws(token)
+                        .getBody();
+                String username = claims.getSubject();
+                String role = claims.get("role", String.class);
 
-            List<GrantedAuthority> authorities = new ArrayList<>();
-            authorities.addAll(Arrays.asList(new SimpleGrantedAuthority("ROLE_USER"), new SimpleGrantedAuthority("ROLE_ADMIN")));
+                logger.info("Username from token: " + username);
+                logger.info("Role from token: " + role);
 
+                List<GrantedAuthority> authorities = Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()));
 
+                UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                        username, null, authorities);
 
-            UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                    username, null, authorities);
-
-            SecurityContextHolder.getContext().setAuthentication(auth);
-            logger.info("Authentication set in SecurityContext");
-        } else {
-            logger.warning("No valid JWT token found in request headers");
+                SecurityContextHolder.getContext().setAuthentication(auth);
+                logger.info("Authentication set in SecurityContext");
+            }
+        } catch (JwtException e) {
+            logger.warning("Invalid JWT token: " + e.getMessage());
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private boolean isPublicEndpoint(String path) {
+        return path.startsWith("/api/auth/") || path.startsWith("/error") || path.startsWith("/oauth2/")
+                || path.startsWith("/api/routes/") || path.startsWith("/api/reservations/")
+                || path.startsWith("/api/users/") || path.startsWith("/api/schedules/")
+                || path.startsWith("/api/payment/") || path.startsWith("/api/passengers/")
+                || path.startsWith("/api/translate/") || path.startsWith("/api/contact-messages/")
+                || path.startsWith("/api/contacts/") || path.startsWith("/api/destinations/")
+                || path.startsWith("/api/background-image/") || path.startsWith("/api/reset-password/")
+                || path.startsWith("/api/faqs/");
     }
 
     private String extractToken(HttpServletRequest request) {
@@ -80,18 +107,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             Jwts.parserBuilder().setSigningKey(getSigningKey()).build().parseClaimsJws(token);
             logger.info("Token is valid");
             return true;
-        } catch (ExpiredJwtException e) {
-            logger.warning("Token is expired: " + e.getMessage());
-        } catch (UnsupportedJwtException e) {
-            logger.warning("Unsupported JWT token: " + e.getMessage());
-        } catch (MalformedJwtException e) {
-            logger.warning("Malformed JWT token: " + e.getMessage());
-        } catch (SignatureException e) {
-            logger.warning("Invalid JWT signature: " + e.getMessage());
-        } catch (IllegalArgumentException e) {
-            logger.warning("JWT claims string is empty: " + e.getMessage());
+        } catch (JwtException e) {
+            logger.warning("Invalid JWT token: " + e.getMessage());
+            return false;
         }
-        return false;
     }
 
     private Key getSigningKey() {
