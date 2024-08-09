@@ -28,11 +28,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Value("${jwt.secret}")
     private String jwtSecret;
 
+    private Key signingKey;
+
     @PostConstruct
     public void init() {
         if (jwtSecret == null || jwtSecret.isEmpty()) {
             throw new IllegalStateException("JWT secret is not set. Check your application properties.");
         }
+        this.signingKey = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
     }
 
     @Override
@@ -58,17 +61,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             if (validateToken(token)) {
                 Claims claims = Jwts.parserBuilder()
-                        .setSigningKey(getSigningKey())
+                        .setSigningKey(signingKey)
                         .build()
                         .parseClaimsJws(token)
                         .getBody();
+
                 String username = claims.getSubject();
                 String role = claims.get("role", String.class);
 
                 logger.info("Username from token: " + username);
-                logger.info("Role from token: " + role);
+                logger.info("Role from token: " + (role != null ? role : "null"));
 
-                List<GrantedAuthority> authorities = Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()));
+                List<GrantedAuthority> authorities;
+                if (role != null && !role.isEmpty()) {
+                    authorities = Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()));
+                } else {
+                    logger.warning("No role found in token. Assigning default role.");
+                    authorities = Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"));
+                }
 
                 UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
                         username, null, authorities);
@@ -104,17 +114,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private boolean validateToken(String token) {
         try {
-            Jwts.parserBuilder().setSigningKey(getSigningKey()).build().parseClaimsJws(token);
+            Jwts.parserBuilder().setSigningKey(signingKey).build().parseClaimsJws(token);
             logger.info("Token is valid");
             return true;
         } catch (JwtException e) {
             logger.warning("Invalid JWT token: " + e.getMessage());
             return false;
         }
-    }
-
-    private Key getSigningKey() {
-        byte[] keyBytes = jwtSecret.getBytes(StandardCharsets.UTF_8);
-        return Keys.hmacShaKeyFor(keyBytes);
     }
 }

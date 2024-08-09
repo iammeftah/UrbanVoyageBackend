@@ -90,10 +90,10 @@ public class SecurityConfig {
                 .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling(exceptionHandling -> exceptionHandling
                         .authenticationEntryPoint((request, response, authException) -> {
-                            logger.severe("Unauthorized error: " + authException.getMessage());
+                            logger.severe("Unauthorized error: " + authException.getMessage() + " for path: " + request.getRequestURI());
                             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                            response.getWriter().write("{\"error\": \"Unauthorized\", \"message\": \"" + authException.getMessage() + "\"}");
+                            response.getWriter().write("{\"error\": \"Unauthorized\", \"message\": \"" + authException.getMessage() + "\", \"path\": \"" + request.getRequestURI() + "\"}");
                         })
                 )
                 .addFilterBefore(new CorsFilter(corsConfigurationSource()), ChannelProcessingFilter.class);
