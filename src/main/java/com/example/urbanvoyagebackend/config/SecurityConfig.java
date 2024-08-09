@@ -39,13 +39,10 @@ public class SecurityConfig {
     @Autowired
     private OAuth2SuccessHandler oAuth2SuccessHandler;
 
-
-
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
         return authenticationConfiguration.getAuthenticationManager();
     }
-
 
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter() {
@@ -54,7 +51,6 @@ public class SecurityConfig {
 
     @Autowired
     private ClientRegistrationRepository clientRegistrationRepository;
-
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -70,7 +66,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**", "/error", "/oauth2/**").permitAll()
                         .requestMatchers("/api/routes/**", "/error").permitAll()
                         .requestMatchers(HttpMethod.PATCH, "/api/reservations/**").permitAll()
-                        .requestMatchers("/api/reservations/create").permitAll() // Add this line
+                        .requestMatchers("/api/reservations/create").permitAll()
                         .requestMatchers("/api/reservations/availableSeats").permitAll()
                         .requestMatchers("/api/users/**", "/error").permitAll()
                         .requestMatchers("/api/schedules/**", "/error").permitAll()
@@ -105,15 +101,12 @@ public class SecurityConfig {
         return http.build();
     }
 
-    @Value("${baseUrl}")
-    String baseUrl;
-    
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList(baseUrl));
+        configuration.setAllowedOrigins(Arrays.asList("*")); // Allow all origins
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type"));
+        configuration.setAllowedHeaders(Arrays.asList("*")); // Allow all headers
         configuration.setExposedHeaders(Arrays.asList("Access-Control-Allow-Origin", "Access-Control-Allow-Credentials"));
         configuration.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
