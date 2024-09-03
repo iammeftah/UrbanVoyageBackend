@@ -55,7 +55,6 @@ public class SecurityConfig {
     @Autowired
     private ClientRegistrationRepository clientRegistrationRepository;
 
-    /*
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         OAuth2AuthorizationRequestResolver customAuthorizationRequestResolver =
@@ -66,56 +65,7 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/api/auth/**", "/error", "/oauth2/**").permitAll()
-                        .requestMatchers("/api/routes/**", "/error").permitAll()
-                        .requestMatchers(HttpMethod.PATCH, "/api/reservations/**").permitAll()
-                        .requestMatchers("/api/reservations/create").permitAll()
-                        .requestMatchers("/api/reservations/availableSeats").permitAll()
-                        .requestMatchers("/api/users/**", "/error").permitAll()
-                        .requestMatchers("/api/schedules/**", "/error").permitAll()
-                        .requestMatchers("/api/payment/**", "/error").permitAll()
-                        .requestMatchers("/api/passengers/**", "/error").permitAll()
-                        .requestMatchers("/api/translate/**", "/error").permitAll()
-                        .requestMatchers("/api/contact-messages/**", "/error").permitAll()
-                        .requestMatchers("/api/contacts/**", "/error").permitAll()
-                        .requestMatchers("/api/destinations/**", "/error").permitAll()
-                        .requestMatchers("/api/background-image/**", "/error").permitAll()
-                        .requestMatchers("/api/reset-password/**", "/error").permitAll()
-                        .requestMatchers("/api/faqs/**", "/error").permitAll()
-                        .anyRequest().authenticated()
-                )
-                .oauth2Login(oauth2 -> oauth2
-                        .loginPage("/oauth2/authorization/google")
-                        .authorizationEndpoint(authorization -> authorization
-                                .authorizationRequestResolver(customAuthorizationRequestResolver))
-                        .successHandler(oAuth2SuccessHandler)
-                )
-                .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
-                .exceptionHandling(exceptionHandling -> exceptionHandling
-                        .authenticationEntryPoint((request, response, authException) -> {
-                            logger.severe("Unauthorized error: " + authException.getMessage());
-                            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                            response.getWriter().write("{\"error\": \"Unauthorized\", \"message\": \"" + authException.getMessage() + "\"}");
-                        })
-                )
-                .addFilterBefore(new CorsFilter(corsConfigurationSource()), ChannelProcessingFilter.class);
-
-        return http.build();
-    } */
-
-
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        OAuth2AuthorizationRequestResolver customAuthorizationRequestResolver =
-                new CustomOAuth2AuthorizationRequestResolver(clientRegistrationRepository, OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI);
-
-        http
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(AbstractHttpConfigurer::disable)
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/api/auth/**", "/error", "/oauth2/**").permitAll()
+                        .requestMatchers("/", "/api/auth/**", "/error", "/oauth2/**").permitAll()
                         .requestMatchers("/api/routes/**").permitAll()
                         .requestMatchers("/api/translate/**").permitAll()
                         .requestMatchers("/api/contact-messages/**").permitAll()
@@ -141,7 +91,7 @@ public class SecurityConfig {
                 .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling(exceptionHandling -> exceptionHandling
                         .authenticationEntryPoint((request, response, authException) -> {
-                            logger.severe("Unauthorized error: " + authException.getMessage());
+                            logger.warning("Unauthorized error: " + authException.getMessage());
                             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                             response.getWriter().write("{\"error\": \"Unauthorized\", \"message\": \"" + authException.getMessage() + "\"}");
