@@ -120,6 +120,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/routes/**").permitAll()
                         .requestMatchers("/api/translate/**").permitAll()
                         .requestMatchers("/api/contact-messages/**").permitAll()
+                        .requestMatchers("/api/faqs/**").permitAll()
+                        .requestMatchers("/api/contacts/**", "/error").permitAll()
                         .requestMatchers("/api/reset-password/**").permitAll()
 
                         // ROLE_CLIENT and ROLE_ADMIN accessible endpoints
@@ -132,7 +134,6 @@ public class SecurityConfig {
                         // ROLE_ADMIN only endpoints
                         .requestMatchers("/api/destinations/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers("/api/background-image/**").hasAuthority("ROLE_ADMIN")
-                        .requestMatchers("/api/faqs/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
 
                         // Any other request requires authentication
