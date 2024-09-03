@@ -50,9 +50,6 @@ public abstract class User {
     private String verificationCode;
     private boolean verified;
 
-    // ghadi nzid hna attribut , nsmiwh nationality , li ghadi nchofo kifach kola user n akhdo l address ip dyalo w n3rfoh fin sakn
-    // bach ytstocka f database , bach n affichiwh f chart dyal nationality
-
     // Constructors
     public User() {}
 

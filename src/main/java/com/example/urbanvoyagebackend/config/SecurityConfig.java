@@ -39,10 +39,13 @@ public class SecurityConfig {
     @Autowired
     private OAuth2SuccessHandler oAuth2SuccessHandler;
 
+
+
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
         return authenticationConfiguration.getAuthenticationManager();
     }
+
 
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter() {
@@ -51,6 +54,7 @@ public class SecurityConfig {
 
     @Autowired
     private ClientRegistrationRepository clientRegistrationRepository;
+
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -62,11 +66,10 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/api/health").permitAll()
                         .requestMatchers("/api/auth/**", "/error", "/oauth2/**").permitAll()
                         .requestMatchers("/api/routes/**", "/error").permitAll()
                         .requestMatchers(HttpMethod.PATCH, "/api/reservations/**").permitAll()
-                        .requestMatchers("/api/reservations/create").permitAll()
+                        .requestMatchers("/api/reservations/create").permitAll() // Add this line
                         .requestMatchers("/api/reservations/availableSeats").permitAll()
                         .requestMatchers("/api/users/**", "/error").permitAll()
                         .requestMatchers("/api/schedules/**", "/error").permitAll()
@@ -90,10 +93,10 @@ public class SecurityConfig {
                 .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling(exceptionHandling -> exceptionHandling
                         .authenticationEntryPoint((request, response, authException) -> {
-                            logger.severe("Unauthorized error: " + authException.getMessage() + " for path: " + request.getRequestURI());
+                            logger.severe("Unauthorized error: " + authException.getMessage());
                             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                            response.getWriter().write("{\"error\": \"Unauthorized\", \"message\": \"" + authException.getMessage() + "\", \"path\": \"" + request.getRequestURI() + "\"}");
+                            response.getWriter().write("{\"error\": \"Unauthorized\", \"message\": \"" + authException.getMessage() + "\"}");
                         })
                 )
                 .addFilterBefore(new CorsFilter(corsConfigurationSource()), ChannelProcessingFilter.class);
@@ -101,12 +104,15 @@ public class SecurityConfig {
         return http.build();
     }
 
+    @Value("${ALLOWED_ORIGIN}")
+    private String allowedOrigin;
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("*")); // Allow all origins
+        configuration.setAllowedOrigins(Arrays.asList(allowedOrigin));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("*")); // Allow all headers
+        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type"));
         configuration.setExposedHeaders(Arrays.asList("Access-Control-Allow-Origin", "Access-Control-Allow-Credentials"));
         configuration.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
