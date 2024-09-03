@@ -1,7 +1,5 @@
 package com.example.urbanvoyagebackend.config;
 
-import com.example.urbanvoyagebackend.config.JwtAuthenticationFilter;
-import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -16,16 +14,15 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
-import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter;
+import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.access.channel.ChannelProcessingFilter;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.web.filter.CorsFilter;
 
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.Arrays;
 import java.util.logging.Logger;
 
@@ -40,7 +37,13 @@ public class SecurityConfig {
     private String frontendBaseUrl;
 
     @Autowired
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @Autowired
     private OAuth2SuccessHandler oAuth2SuccessHandler;
+
+    @Autowired
+    private ClientRegistrationRepository clientRegistrationRepository;
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
@@ -48,47 +51,32 @@ public class SecurityConfig {
     }
 
     @Bean
-    public JwtAuthenticationFilter jwtAuthenticationFilter() {
-        return new JwtAuthenticationFilter();
-    }
-
-    @Autowired
-    private ClientRegistrationRepository clientRegistrationRepository;
-
-    @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        OAuth2AuthorizationRequestResolver customAuthorizationRequestResolver =
-                new CustomOAuth2AuthorizationRequestResolver(clientRegistrationRepository, OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI);
+        OAuth2AuthorizationRequestResolver authorizationRequestResolver =
+                new DefaultOAuth2AuthorizationRequestResolver(
+                        clientRegistrationRepository,
+                        "/oauth2/authorization"
+                );
 
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/", "/api/auth/**", "/error", "/oauth2/**").permitAll()
-                        .requestMatchers("/api/routes/**").permitAll()
-                        .requestMatchers("/api/translate/**").permitAll()
-                        .requestMatchers("/api/contact-messages/**").permitAll()
-                        .requestMatchers("/api/faqs/**").permitAll()
-                        .requestMatchers("/api/contacts/**", "/error").permitAll()
-                        .requestMatchers("/api/reset-password/**").permitAll()
-                        .requestMatchers("/api/reservations/**").hasAnyAuthority("ROLE_CLIENT", "ROLE_ADMIN")
-                        .requestMatchers("/api/users/**").hasAnyAuthority("ROLE_CLIENT", "ROLE_ADMIN")
-                        .requestMatchers("/api/schedules/**").hasAnyAuthority("ROLE_CLIENT", "ROLE_ADMIN")
-                        .requestMatchers("/api/payment/**").hasAnyAuthority("ROLE_CLIENT", "ROLE_ADMIN")
-                        .requestMatchers("/api/passengers/**").hasAnyAuthority("ROLE_CLIENT", "ROLE_ADMIN")
-                        .requestMatchers("/api/destinations/**").hasAuthority("ROLE_ADMIN")
-                        .requestMatchers("/api/background-image/**").hasAuthority("ROLE_ADMIN")
-                        .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
+                        .requestMatchers("/", "/api/auth/**", "/error", "/oauth2/**", "/login/oauth2/code/*").permitAll()
+                        .requestMatchers("/api/routes/**", "/api/translate/**", "/api/contact-messages/**", "/api/faqs/**").permitAll()
+                        .requestMatchers("/api/contacts/**", "/api/reset-password/**").permitAll()
+                        .requestMatchers("/api/reservations/**", "/api/users/**", "/api/schedules/**", "/api/payment/**", "/api/passengers/**").hasAnyAuthority("ROLE_CLIENT", "ROLE_ADMIN")
+                        .requestMatchers("/api/destinations/**", "/api/background-image/**", "/api/admin/**").hasAuthority("ROLE_ADMIN")
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth2 -> oauth2
-                        .loginPage("/oauth2/authorization/google")
                         .authorizationEndpoint(authorization -> authorization
-                                .authorizationRequestResolver(customAuthorizationRequestResolver))
+                                .authorizationRequestResolver(authorizationRequestResolver)
+                        )
                         .successHandler(oAuth2SuccessHandler)
                 )
-                .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling(exceptionHandling -> exceptionHandling
                         .authenticationEntryPoint((request, response, authException) -> {
                             logger.warning("Unauthorized error: " + authException.getMessage());
@@ -96,8 +84,7 @@ public class SecurityConfig {
                             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                             response.getWriter().write("{\"error\": \"Unauthorized\", \"message\": \"" + authException.getMessage() + "\"}");
                         })
-                )
-                .addFilterBefore(new CorsFilter(corsConfigurationSource()), ChannelProcessingFilter.class);
+                );
 
         return http.build();
     }
