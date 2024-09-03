@@ -115,7 +115,6 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authz -> authz
-                        // Public endpoints
                         .requestMatchers("/api/auth/**", "/error", "/oauth2/**").permitAll()
                         .requestMatchers("/api/routes/**").permitAll()
                         .requestMatchers("/api/translate/**").permitAll()
@@ -123,20 +122,14 @@ public class SecurityConfig {
                         .requestMatchers("/api/faqs/**").permitAll()
                         .requestMatchers("/api/contacts/**", "/error").permitAll()
                         .requestMatchers("/api/reset-password/**").permitAll()
-
-                        // ROLE_CLIENT and ROLE_ADMIN accessible endpoints
                         .requestMatchers("/api/reservations/**").hasAnyAuthority("ROLE_CLIENT", "ROLE_ADMIN")
                         .requestMatchers("/api/users/**").hasAnyAuthority("ROLE_CLIENT", "ROLE_ADMIN")
                         .requestMatchers("/api/schedules/**").hasAnyAuthority("ROLE_CLIENT", "ROLE_ADMIN")
                         .requestMatchers("/api/payment/**").hasAnyAuthority("ROLE_CLIENT", "ROLE_ADMIN")
                         .requestMatchers("/api/passengers/**").hasAnyAuthority("ROLE_CLIENT", "ROLE_ADMIN")
-
-                        // ROLE_ADMIN only endpoints
                         .requestMatchers("/api/destinations/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers("/api/background-image/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
-
-                        // Any other request requires authentication
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth2 -> oauth2
@@ -158,7 +151,6 @@ public class SecurityConfig {
 
         return http.build();
     }
-
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
