@@ -5,8 +5,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -21,7 +19,6 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.web.filter.CorsFilter;
 
 import java.util.Arrays;
 import java.util.logging.Logger;
@@ -42,14 +39,12 @@ public class SecurityConfig {
     @Autowired
     private ClientRegistrationRepository clientRegistrationRepository;
 
+    @Autowired
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
+
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
         return authenticationConfiguration.getAuthenticationManager();
-    }
-
-    @Bean
-    public JwtAuthenticationFilter jwtAuthenticationFilter() {
-        return new JwtAuthenticationFilter();
     }
 
     @Bean
@@ -67,8 +62,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/translate/**").permitAll()
                         .requestMatchers("/api/contact-messages/**").permitAll()
                         .requestMatchers("/api/faqs/**").permitAll()
-                        .requestMatchers("/api/contacts/**", "/error").permitAll()
+                        .requestMatchers("/api/contacts/**").permitAll()
                         .requestMatchers("/api/reset-password/**").permitAll()
+                        .requestMatchers("/api/reservations/create").permitAll()
+                        .requestMatchers("/api/reservations/availableSeats").permitAll()
                         .requestMatchers("/api/reservations/**").hasAnyAuthority("ROLE_CLIENT", "ROLE_ADMIN")
                         .requestMatchers("/api/users/**").hasAnyAuthority("ROLE_CLIENT", "ROLE_ADMIN")
                         .requestMatchers("/api/schedules/**").hasAnyAuthority("ROLE_CLIENT", "ROLE_ADMIN")
@@ -85,11 +82,11 @@ public class SecurityConfig {
                                 .authorizationRequestResolver(customAuthorizationRequestResolver))
                         .successHandler(oAuth2SuccessHandler)
                 )
-                .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling(exceptionHandling -> exceptionHandling
                         .authenticationEntryPoint((request, response, authException) -> {
                             logger.severe("Unauthorized error: " + authException.getMessage());
-                            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                            response.setContentType("application/json");
                             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                             response.getWriter().write("{\"error\": \"Unauthorized\", \"message\": \"" + authException.getMessage() + "\"}");
                         })
