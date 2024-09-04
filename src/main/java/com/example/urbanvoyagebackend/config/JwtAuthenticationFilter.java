@@ -18,7 +18,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -32,36 +31,27 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        System.out.println("JwtAuthenticationFilter: Processing request to " + request.getRequestURI());
+        try {
+            String token = extractToken(request);
+            if (token != null && validateToken(token)) {
+                Claims claims = Jwts.parserBuilder()
+                        .setSigningKey(getSigningKey())
+                        .build()
+                        .parseClaimsJws(token)
+                        .getBody();
+                String username = claims.getSubject();
+                String role = claims.get("role", String.class);
 
+                List<GrantedAuthority> authorities = new ArrayList<>();
+                authorities.add(new SimpleGrantedAuthority(role));
 
-        String token = extractToken(request);
-        logger.info("Extracted token: " + (token != null ? "present" : "null"));
+                UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                        username, null, authorities);
 
-        if (token != null && validateToken(token)) {
-            Claims claims = Jwts.parserBuilder()
-                    .setSigningKey(getSigningKey())
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody();
-            String username = claims.getSubject();
-            String role = claims.get("role", String.class);
-
-            logger.info("Username from token: " + username);
-            logger.info("token: " + token);
-
-            List<GrantedAuthority> authorities = new ArrayList<>();
-            authorities.addAll(Arrays.asList(new SimpleGrantedAuthority("ROLE_USER"), new SimpleGrantedAuthority("ROLE_ADMIN")));
-
-
-
-            UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                    username, null, authorities);
-
-            SecurityContextHolder.getContext().setAuthentication(auth);
-            logger.info("Authentication set in SecurityContext");
-        } else {
-            logger.warning("No valid JWT token found in request headers");
+                SecurityContextHolder.getContext().setAuthentication(auth);
+            }
+        } catch (Exception e) {
+            logger.warning("Cannot set user authentication: " + e.getMessage());
         }
 
         filterChain.doFilter(request, response);
@@ -78,18 +68,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private boolean validateToken(String token) {
         try {
             Jwts.parserBuilder().setSigningKey(getSigningKey()).build().parseClaimsJws(token);
-            logger.info("Token is valid");
             return true;
-        } catch (ExpiredJwtException e) {
-            logger.warning("Token is expired: " + e.getMessage());
-        } catch (UnsupportedJwtException e) {
-            logger.warning("Unsupported JWT token: " + e.getMessage());
-        } catch (MalformedJwtException e) {
-            logger.warning("Malformed JWT token: " + e.getMessage());
-        } catch (SignatureException e) {
-            logger.warning("Invalid JWT signature: " + e.getMessage());
-        } catch (IllegalArgumentException e) {
-            logger.warning("JWT claims string is empty: " + e.getMessage());
+        } catch (JwtException | IllegalArgumentException e) {
+            logger.warning("Invalid JWT token: " + e.getMessage());
         }
         return false;
     }
