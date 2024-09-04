@@ -8,6 +8,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
@@ -20,6 +21,9 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
+
+    @Value("${frontend.base.url}")
+    private String frontendBaseUrl;
 
     @Autowired
     private UserRepository userRepository;
@@ -39,7 +43,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         String token = jwtTokenProvider.generateToken(user);
 
         // Redirect to frontend with token
-        getRedirectStrategy().sendRedirect(request, response, "http://localhost:4200/oauth2/redirect?token=" + token);
+        getRedirectStrategy().sendRedirect(request, response, frontendBaseUrl+"/oauth2/redirect?token=" + token);
     }
 
     private User createNewUser(OAuth2User oAuth2User) {
