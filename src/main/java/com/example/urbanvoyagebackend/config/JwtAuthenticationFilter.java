@@ -36,6 +36,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
+        if (request.getRequestURI().startsWith("/oauth2") || request.getRequestURI().startsWith("/login/oauth2")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         System.out.println("JwtAuthenticationFilter: Processing request to " + request.getRequestURI());
 
 
