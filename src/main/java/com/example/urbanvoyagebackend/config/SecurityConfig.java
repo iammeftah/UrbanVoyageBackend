@@ -30,7 +30,6 @@ import java.util.Arrays;
 import java.util.logging.Logger;
 
 
-
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -41,14 +40,24 @@ public class SecurityConfig {
     @Value("${frontend.base.url}")
     private String frontendBaseUrl;
 
+    @Value("${jwt.secret}")
+    private String jwtSecret;
+
     @Autowired
     private OAuth2SuccessHandler oAuth2SuccessHandler;
 
     @Autowired
-    private JwtAuthenticationFilter jwtAuthenticationFilter;
-
-    @Autowired
     private ClientRegistrationRepository clientRegistrationRepository;
+
+    @Bean
+    public JwtAuthenticationFilter jwtAuthenticationFilter() {
+        return new JwtAuthenticationFilter(jwtSecret);
+    }
+
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
+        return authenticationConfiguration.getAuthenticationManager();
+    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -76,7 +85,7 @@ public class SecurityConfig {
                                 .authorizationRequestResolver(customAuthorizationRequestResolver))
                         .successHandler(oAuth2SuccessHandler)
                 )
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling(exceptionHandling -> exceptionHandling
                         .authenticationEntryPoint((request, response, authException) -> {
                             logger.severe("Unauthorized error: " + authException.getMessage());
@@ -102,9 +111,6 @@ public class SecurityConfig {
         return source;
     }
 }
-
-
-
 
 
 
